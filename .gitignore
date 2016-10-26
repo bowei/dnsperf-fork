@@ -34,3 +34,8 @@
 /Makefile
 /config.log
 /config.status
+/dnsperf
+/resperf
+/.vscode
+*~
+tmp-docker-build.sh

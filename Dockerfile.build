@@ -1,0 +1,21 @@
+FROM alpine
+MAINTAINER bowei@google.com
+
+RUN apk update
+RUN apk add \
+  bash \  
+  bind \
+  bind-dev \
+  bind-libs \
+  gcc \
+  libcap \
+  libcap-dev \
+  libpcap \
+  libpcap-dev \
+  make \
+  musl-dev \
+  openssl-dev
+
+COPY tmp-docker-build.sh /tmp-docker-build.sh
+
+ENTRYPOINT ["/tmp-docker-build.sh"]
