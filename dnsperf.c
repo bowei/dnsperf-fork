@@ -109,6 +109,7 @@ typedef struct {
 	isc_uint64_t stats_interval;
 	isc_boolean_t updates;
 	isc_boolean_t verbose;
+	isc_uint32_t rtt_histogram_max;
 } config_t;
 
 typedef struct {
@@ -117,6 +118,10 @@ typedef struct {
 	isc_uint64_t stop_time;
 	struct timespec stop_time_ns;
 } times_t;
+
+// Maximum time that we track separately in the histogram. All times beyond the
+// max are lumped together.
+#define MAX_RTT_HISTOGRAM_MS 5000
 
 typedef struct {
 	isc_uint64_t rcodecounts[16];
@@ -133,6 +138,8 @@ typedef struct {
 	isc_uint64_t latency_sum_squares;
 	isc_uint64_t latency_min;
 	isc_uint64_t latency_max;
+
+	isc_uint64_t rtt_histogram[MAX_RTT_HISTOGRAM_MS];
 } stats_t;
 
 typedef ISC_LIST(struct query_info) query_list;
@@ -339,6 +346,13 @@ print_statistics(const config_t *config, const times_t *times, stats_t *stats)
 	}
 
 	printf("\n");
+
+	printf("  Latency histogram\n");
+	for (i = 0; i < MAX_RTT_HISTOGRAM_MS; ++i) {
+		if (i == 0 || stats->rtt_histogram[i] > 0) {
+			printf("#histogram %u %lu\n", i, stats->rtt_histogram[i]);
+		}
+	}
 }
 
 static void
@@ -366,6 +380,10 @@ sum_stats(const config_t *config, stats_t *total)
 		total->latency_sum_squares += stats->latency_sum_squares;
 		total->latency_min += stats->latency_min;
 		total->latency_max += stats->latency_max;
+
+		for (j = 0; j < MAX_RTT_HISTOGRAM_MS; ++j) {
+			total->rtt_histogram[j] += stats->rtt_histogram[j];
+		}
 	}
 }
 
@@ -709,6 +727,8 @@ process_timeouts(threadinfo_t *tinfo, isc_uint64_t now)
 		query_move(tinfo, q, append_unused);
 
 		tinfo->stats.num_timedout++;
+		// Track timeouts as max rtt.
+		tinfo->stats.rtt_histogram[MAX_RTT_HISTOGRAM_MS - 1]++;
 
 		if (q->desc != NULL) {
 			perf_log_printf("> T %s", q->desc);
@@ -905,6 +925,11 @@ do_recv(void *arg)
 				stats->latency_min = latency;
 			if (latency > stats->latency_max)
 				stats->latency_max = latency;
+
+			const int bucket =
+				((latency / 1000) > (MAX_RTT_HISTOGRAM_MS - 1)) ?
+				(MAX_RTT_HISTOGRAM_MS - 1) : (latency / 1000);
+			stats->rtt_histogram[bucket]++;
 		}
 
 		if (nrecvd > 0)
