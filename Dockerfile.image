@@ -1,0 +1,10 @@
+FROM alpine
+MAINTAINER bowei@google.com
+
+RUN apk update
+RUN apk add bind-libs libcap libgcc
+
+COPY dnsperf /dnsperf
+COPY resperf /resperf
+
+ENTRYPOINT ["/dnsperf"]
