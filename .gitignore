@@ -31,3 +31,6 @@
 # Debug files
 *.dSYM/
 *.su
+/Makefile
+/config.log
+/config.status
