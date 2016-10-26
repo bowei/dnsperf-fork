@@ -1,0 +1,10 @@
+### date: Wed Oct 26 20:38:07 PDT 2016
+### set dnsperf_queries=10000
+### set kubedns_cpu_opts=-
+### set dnsmasq_cpu_opts=100m
+### set dnsmasq_cache_opts=0
+### set max_qps_opts=-
+### set query_type_opts=nx-domain
+### cmd: kubectl exec dnsperf-client -- \
+###      /dnsperf -d /queries/nx-domain.txt -n 10000 -s 10.0.0.10
+###

@@ -6,5 +6,6 @@ RUN apk add bind-libs libcap libgcc
 
 COPY dnsperf /dnsperf
 COPY resperf /resperf
+COPY queries /queries
 
 ENTRYPOINT ["/dnsperf"]

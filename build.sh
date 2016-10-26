@@ -30,6 +30,7 @@ docker build --tag "${BUILD_IMAGE}:${TAG}" -f Dockerfile.build .
 docker run -v `pwd`:/src -i "${BUILD_IMAGE}:${TAG}"
 
 docker build --tag "${IMAGE}:${TAG}" -f Dockerfile.image .
+gcloud docker push "${IMAGE}:${TAG}"
 
 echo
-echo "Build image: ${IMAGE}:${TAG}"
+echo "Built image: ${IMAGE}:${TAG}"
