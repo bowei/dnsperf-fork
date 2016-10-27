@@ -23,8 +23,8 @@ This test does the following:
 * Launches a pod on the client node for running dnsperf.
 
 The perf test will then cycle through test parameters (see below) and
-output the results to id/*.out. The latest run is accessible from the
-'latest' symlink.
+output the results to RUN_ID/*.out. The latest run is accessible from
+the 'latest' symlink.
 
 Analyze the test results with analyze.py:
 
