@@ -96,7 +96,7 @@ class App(object):
       match = re.match('^### set (.*)_opt.*=(.*)', line)
       params[match.group(1)] = match.group(2)
 
-      self.params = params
+    self.params = params
 
   RESULT_RE = {
       'queries_sent': re.compile(r'\s*Queries sent:\s*(\d+)'),

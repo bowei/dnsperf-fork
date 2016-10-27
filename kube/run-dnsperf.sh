@@ -72,9 +72,9 @@ parse_args() {
   fi
 
   # See usage doc above.
-  dnsperf_queries_opt=${dnsperf_queries_opt:-10000}
-  kubedns_cpu_opt=${kubedns_cpu_opt:-100m 200m 250m 500m -}
-  dnsmasq_cpu_opt=${dnsmasq_cpu_opt:-100m 200m 250m 500m -}
+  dnsperf_queries_opt=${dnsperf_queries_opt:-5000}
+  kubedns_cpu_opt=${kubedns_cpu_opt:-200m 250m 300m 350m 400m -}
+  dnsmasq_cpu_opt=${dnsmasq_cpu_opt:-100m 200m 250m 300m -}
   dnsmasq_cache_opt=${dnsmasq_cache_opt:-0 10000}
   max_qps_opt=${max_qps_opt:--Q500 -Q1000 -Q2000 -Q3000 -}
   query_type_opt=${query_type_opt:-nx-domain outside pod-ip service}
