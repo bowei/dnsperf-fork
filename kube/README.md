@@ -40,6 +40,10 @@ latencies.
 * kubedns_cpu - Resource limit for kubedns
 * dnsmasq_cpu - Resource limit for kubedns
 * query_type - Type of DNS query
+  * nx-domain: no matching domain
+  * outside: query for google.com
+  * pod-ip: synthetic query answered by kube-dns (e.g. `1-2-3-4.default.pod.cluster.local`)
+  * service: service domain (e.g. `service1.default.svc.cluster.local`)
 * target QPS - Queries per second (QPS) target for
   dnsperf. `unlimited` means run the DNS system to saturation.
 * attained QPS - Average QPS we got on the run
