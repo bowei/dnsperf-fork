@@ -1,23 +1,50 @@
 
 # Overview
 
-This directory contains scripts used to run a dns performance test against a
-kubernetes cluster.
+This directory contains scripts used to run a dns performance test
+against a kubernetes cluster.
 
-See ./run-dnsperf.sh --help for details.
+See ./run-dnsperf.sh --help for details on how to rerun the benchmark
+on your own cluster.
 
 # Raw data
 
-This is the raw data for kube-dns performance.
+The results below were obtained from a cluster consisting of
+2-vCPUs/node. Available RAM was not a factor in the performance test.
 
-* cached - whether or not the dnsmasq cache was used
-* kubedns_cpu - resource limit for kubedns
-* dnsmasq_cpu - resource limit for kubedns
-* query_type - type of DNS query
-* target QPS - queries per second (QPS) target for with dnsperf
-* attained QPS - average QPS we got on the run
-* avg, max latency - average, maximum query latency
-* 50, .. %tile - latency percentiles
+## Notes on interpretation
+
+The questions we want to answer:
+
+* What is the maximum QPS we can get from the Kubernetes DNS service
+  given no limits?
+* If we restrict CPU resources, what is the peformance we can expect?
+  (i.e. resource limits in the pod yaml).
+* What are the SLOs (e.g. query latency) for a given setting that the
+  user can expect? Alternate phrasing: what can we expect in realistic
+  workloads that do not saturate the service?
+
+From table below, the answer can be read off from the appropriate
+row.
+
+The inclusion of target QPS vs attained QPS is to answer the third
+question. For example, if a user does not hit the maximum QPS possible
+from a given DNS server pod, then what are the latencies that they
+should expect? Latency increases with load and if a user's
+applications do not saturate the service, they will attain better
+latencies.
+
+## Table fields
+
+* cached - Whether or not the dnsmasq cache was used
+* kubedns_cpu - Resource limit for kubedns
+* dnsmasq_cpu - Resource limit for kubedns
+* query_type - Type of DNS query
+* target QPS - Queries per second (QPS) target for
+  dnsperf. `unlimited` means run the DNS system to saturation.
+* attained QPS - Average QPS we got on the run
+* avg, max latency - Average, maximum query latency
+* 50, .. %tile - Latency percentiles (ms)
 
 cached|kubedns_cpu|dnsmasq_cpu|query_type|target QPS|attained QPS|avg latency (ms)|max (ms)|50%tile|95%tile|99%tile|99.5%tile
 ----|----|----|----|----|----|----|----|----|----|----|----
@@ -81,6 +108,26 @@ N|200m|250m|service|1000|999|1.6|92.5|0.0|5.0|29.0|44.0
 N|200m|250m|service|2000|1999|24.3|99.4|12.0|66.0|77.0|79.0
 N|200m|250m|service|3000|2938|27.3|99.0|6.0|86.0|92.0|94.0
 N|200m|250m|service|-|2957|33.2|106.9|6.0|93.0|97.0|97.0
+N|200m|unlimited|nx-domain|500|499|0.6|67.6|0.0|0.0|2.0|5.0
+N|200m|unlimited|nx-domain|1000|999|1.0|38.3|0.0|2.0|19.0|25.0
+N|200m|unlimited|nx-domain|2000|1971|16.6|82.3|4.0|54.0|69.0|73.0
+N|200m|unlimited|nx-domain|3000|2999|23.4|88.4|5.0|75.0|84.0|85.0
+N|200m|unlimited|nx-domain|-|3686|27.0|101.4|5.0|90.0|100.0|100.0
+N|200m|unlimited|outside|500|499|2.1|103.0|1.0|2.0|23.0|40.0
+N|200m|unlimited|outside|1000|999|12.6|88.9|1.0|44.0|61.0|66.0
+N|200m|unlimited|outside|2000|1990|27.5|98.6|9.0|73.0|85.0|88.0
+N|200m|unlimited|outside|3000|2949|30.3|98.5|6.0|91.0|93.0|95.0
+N|200m|unlimited|outside|-|3133|31.8|101.6|6.0|92.0|97.0|99.0
+N|200m|unlimited|pod-ip|500|499|0.9|105.4|0.0|0.0|5.0|27.0
+N|200m|unlimited|pod-ip|1000|999|4.2|58.8|0.0|25.0|43.0|47.0
+N|200m|unlimited|pod-ip|2000|1962|36.9|177.3|13.0|92.0|97.0|99.0
+N|200m|unlimited|pod-ip|3000|2121|45.9|102.2|9.0|98.0|100.0|101.0
+N|200m|unlimited|pod-ip|-|2168|46.0|188.6|9.0|97.0|100.0|101.0
+N|200m|unlimited|service|500|499|0.8|96.4|0.0|0.0|4.0|10.0
+N|200m|unlimited|service|1000|999|2.1|66.3|0.0|12.0|36.0|46.0
+N|200m|unlimited|service|2000|1996|24.1|101.9|8.0|69.0|82.0|87.0
+N|200m|unlimited|service|3000|2859|34.4|104.6|6.0|94.0|98.0|99.0
+N|200m|unlimited|service|-|3024|33.0|105.3|6.0|93.0|99.0|104.0
 N|250m|100m|nx-domain|500|499|0.8|90.7|0.0|0.0|5.0|12.0
 N|250m|100m|nx-domain|1000|999|4.3|95.2|0.0|23.0|34.0|44.0
 N|250m|100m|nx-domain|2000|1994|30.6|97.4|21.0|74.0|81.0|84.0
@@ -141,6 +188,105 @@ N|250m|250m|service|1000|999|1.7|124.4|0.0|1.0|60.0|84.0
 N|250m|250m|service|2000|1993|10.8|62.9|0.0|41.0|53.0|55.0
 N|250m|250m|service|3000|2948|19.3|99.6|4.0|64.0|77.0|81.0
 N|250m|250m|service|-|4047|24.0|99.0|4.0|87.0|91.0|93.0
+N|250m|unlimited|nx-domain|500|499|0.5|19.5|0.0|0.0|2.0|3.0
+N|250m|unlimited|nx-domain|1000|999|0.5|20.4|0.0|0.0|2.0|4.0
+N|250m|unlimited|nx-domain|2000|1999|10.1|68.0|0.0|41.0|54.0|57.0
+N|250m|unlimited|nx-domain|3000|2999|16.9|78.2|3.0|61.0|69.0|72.0
+N|250m|unlimited|nx-domain|-|4562|21.7|94.6|4.0|85.0|91.0|92.0
+N|250m|unlimited|outside|500|499|1.4|35.7|1.0|1.0|4.0|8.0
+N|250m|unlimited|outside|1000|999|6.9|63.6|1.0|30.0|45.0|50.0
+N|250m|unlimited|outside|2000|1999|20.5|84.7|7.0|60.0|72.0|75.0
+N|250m|unlimited|outside|3000|2994|24.3|96.5|6.0|76.0|85.0|89.0
+N|250m|unlimited|outside|-|4115|24.2|93.3|5.0|86.0|90.0|91.0
+N|250m|unlimited|pod-ip|500|499|0.7|64.3|0.0|0.0|3.0|7.0
+N|250m|unlimited|pod-ip|1000|999|1.6|71.0|0.0|6.0|30.0|47.0
+N|250m|unlimited|pod-ip|2000|1999|25.1|92.2|13.0|67.0|77.0|80.0
+N|250m|unlimited|pod-ip|3000|2793|35.3|99.4|7.0|93.0|96.0|97.0
+N|250m|unlimited|pod-ip|-|2784|35.6|105.5|7.0|92.0|97.0|99.0
+N|250m|unlimited|service|500|499|0.6|65.9|0.0|0.0|2.0|5.0
+N|250m|unlimited|service|1000|999|0.7|51.7|0.0|0.0|4.0|8.0
+N|250m|unlimited|service|2000|1999|13.8|94.2|1.0|50.0|66.0|74.0
+N|250m|unlimited|service|3000|2999|20.2|88.2|5.0|66.0|75.0|78.0
+N|250m|unlimited|service|-|3777|26.4|94.8|5.0|89.0|92.0|93.0
+N|unlimited|100m|nx-domain|500|499|0.8|102.3|0.0|0.0|5.0|18.0
+N|unlimited|100m|nx-domain|1000|999|2.4|36.6|0.0|15.0|24.0|26.0
+N|unlimited|100m|nx-domain|2000|1981|31.0|98.7|23.5|76.0|84.0|88.0
+N|unlimited|100m|nx-domain|3000|2327|40.8|163.4|6.0|96.0|101.0|115.0
+N|unlimited|100m|nx-domain|-|2328|41.5|191.7|6.0|96.0|106.0|107.0
+N|unlimited|100m|outside|500|499|1.4|41.6|1.0|1.0|5.0|7.0
+N|unlimited|100m|outside|1000|999|4.9|102.3|1.0|24.0|34.0|54.0
+N|unlimited|100m|outside|2000|1992|33.2|129.2|20.0|82.0|95.0|97.0
+N|unlimited|100m|outside|3000|2318|41.3|103.0|7.0|95.0|98.0|99.0
+N|unlimited|100m|outside|-|2258|43.6|103.8|9.0|96.0|100.0|100.0
+N|unlimited|100m|pod-ip|500|499|3.4|303.4|0.0|1.0|106.6|231.0
+N|unlimited|100m|pod-ip|1000|999|3.7|41.5|0.0|22.0|31.0|33.0
+N|unlimited|100m|pod-ip|2000|1951|45.7|179.8|21.0|98.0|100.0|100.0
+N|unlimited|100m|pod-ip|3000|2126|46.7|185.3|12.0|98.0|100.0|100.0
+N|unlimited|100m|pod-ip|-|2116|47.0|191.7|13.0|98.0|100.0|100.0
+N|unlimited|100m|service|500|499|0.6|21.6|0.0|0.0|3.0|8.0
+N|unlimited|100m|service|1000|999|1.2|34.2|0.0|6.0|15.0|18.0
+N|unlimited|100m|service|2000|1991|30.8|92.5|21.0|76.0|83.0|85.0
+N|unlimited|100m|service|3000|2277|42.7|191.6|9.0|96.0|99.0|100.0
+N|unlimited|100m|service|-|2380|41.9|186.4|8.0|97.0|106.0|107.0
+N|unlimited|200m|nx-domain|500|499|0.6|61.4|0.0|0.0|2.0|5.0
+N|unlimited|200m|nx-domain|1000|999|0.9|87.2|0.0|0.0|7.0|39.0
+N|unlimited|200m|nx-domain|2000|1999|0.5|8.3|0.0|1.0|4.0|5.0
+N|unlimited|200m|nx-domain|3000|2997|16.2|78.9|6.0|54.0|61.0|65.0
+N|unlimited|200m|nx-domain|-|3186|30.7|94.4|8.0|87.0|92.0|92.0
+N|unlimited|200m|outside|500|499|1.3|17.4|1.0|1.0|3.0|4.0
+N|unlimited|200m|outside|1000|999|1.7|91.2|1.0|2.0|8.0|44.0
+N|unlimited|200m|outside|2000|1996|1.1|18.1|0.0|1.0|6.0|7.0
+N|unlimited|200m|outside|3000|2991|14.7|64.4|5.0|48.0|57.0|59.0
+N|unlimited|200m|outside|-|3407|29.2|93.5|9.0|84.0|87.0|88.0
+N|unlimited|200m|pod-ip|500|499|0.6|56.1|0.0|0.0|2.0|4.0
+N|unlimited|200m|pod-ip|1000|999|1.1|94.4|0.0|0.0|10.0|51.0
+N|unlimited|200m|pod-ip|2000|1999|0.7|21.2|0.0|2.0|8.0|13.0
+N|unlimited|200m|pod-ip|3000|2924|27.8|97.8|11.0|81.0|90.0|94.0
+N|unlimited|200m|pod-ip|-|3461|28.8|103.9|9.0|83.0|93.0|98.0
+N|unlimited|200m|service|500|499|0.7|72.7|0.0|0.0|2.0|4.0
+N|unlimited|200m|service|1000|999|0.5|12.3|0.0|0.0|3.0|4.0
+N|unlimited|200m|service|2000|1999|0.6|15.5|0.0|1.0|5.0|7.0
+N|unlimited|200m|service|3000|2954|16.3|91.6|6.0|66.0|77.0|81.0
+N|unlimited|200m|service|-|4763|20.9|91.0|5.0|81.0|88.0|89.0
+N|unlimited|250m|nx-domain|500|499|0.6|52.8|0.0|0.0|2.0|4.0
+N|unlimited|250m|nx-domain|1000|999|0.7|62.9|0.0|0.0|3.0|14.0
+N|unlimited|250m|nx-domain|2000|1999|0.5|15.0|0.0|0.0|3.0|5.0
+N|unlimited|250m|nx-domain|3000|2999|2.6|29.8|0.0|14.0|20.0|22.0
+N|unlimited|250m|nx-domain|-|3972|25.1|100.9|7.0|81.0|90.0|93.0
+N|unlimited|250m|outside|500|499|1.5|93.7|1.0|1.0|5.0|12.0
+N|unlimited|250m|outside|1000|999|1.6|72.2|1.0|2.0|9.0|22.0
+N|unlimited|250m|outside|2000|1999|1.1|24.7|0.0|2.0|6.0|10.0
+N|unlimited|250m|outside|3000|2994|2.8|86.0|0.0|7.0|51.1|73.0
+N|unlimited|250m|outside|-|4039|24.7|87.7|9.0|78.0|81.0|83.0
+N|unlimited|250m|pod-ip|500|499|0.6|61.8|0.0|0.0|2.0|4.0
+N|unlimited|250m|pod-ip|1000|999|0.9|75.9|0.0|1.0|8.0|31.0
+N|unlimited|250m|pod-ip|2000|1999|0.8|41.9|0.0|2.0|9.0|17.0
+N|unlimited|250m|pod-ip|3000|2999|7.9|73.3|0.0|29.0|55.0|60.0
+N|unlimited|250m|pod-ip|-|3873|25.7|96.8|10.0|76.0|82.0|83.0
+N|unlimited|250m|service|500|499|0.5|35.5|0.0|0.0|1.0|2.0
+N|unlimited|250m|service|1000|999|1.0|94.5|0.0|0.0|7.0|46.0
+N|unlimited|250m|service|2000|1999|0.6|18.1|0.0|1.0|6.0|11.0
+N|unlimited|250m|service|3000|2999|1.1|29.9|0.0|5.0|13.0|17.0
+N|unlimited|250m|service|-|5820|17.1|88.0|5.0|75.0|84.0|85.0
+N|unlimited|unlimited|nx-domain|1000|999|0.5|11.9|0.0|0.0|2.0|4.0
+N|unlimited|unlimited|nx-domain|2000|1999|0.5|15.4|0.0|0.0|4.0|8.0
+N|unlimited|unlimited|nx-domain|3000|2999|0.5|14.7|0.0|1.0|6.0|8.0
+N|unlimited|unlimited|nx-domain|-|13317|7.4|20.6|6.0|14.0|17.0|18.0
+N|unlimited|unlimited|outside|500|499|1.4|61.1|1.0|1.0|5.0|11.0
+N|unlimited|unlimited|outside|1000|999|1.3|21.3|1.0|1.0|5.0|8.0
+N|unlimited|unlimited|outside|2000|1999|1.1|14.1|0.0|2.0|6.0|9.0
+N|unlimited|unlimited|outside|3000|2999|1.2|14.3|0.0|3.0|7.0|9.0
+N|unlimited|unlimited|outside|-|11153|8.7|51.4|7.0|16.0|32.0|41.0
+N|unlimited|unlimited|pod-ip|500|499|0.6|11.4|0.0|0.0|2.0|3.0
+N|unlimited|unlimited|pod-ip|1000|999|0.7|23.6|0.0|0.0|6.0|9.0
+N|unlimited|unlimited|pod-ip|2000|1999|0.7|25.6|0.0|2.0|10.0|15.0
+N|unlimited|unlimited|pod-ip|3000|2999|0.7|15.9|0.0|2.0|7.0|9.0
+N|unlimited|unlimited|pod-ip|-|8497|11.6|38.7|10.0|22.0|29.0|31.0
+N|unlimited|unlimited|service|500|499|0.5|11.8|0.0|0.0|2.0|3.0
+N|unlimited|unlimited|service|1000|999|0.5|16.1|0.0|0.0|2.0|5.0
+N|unlimited|unlimited|service|2000|1999|0.5|13.6|0.0|1.0|5.0|7.0
+N|unlimited|unlimited|service|3000|2999|0.6|13.6|0.0|2.0|6.0|8.0
+N|unlimited|unlimited|service|-|11736|8.3|24.9|7.0|15.0|18.0|19.0
 Y|200m|100m|nx-domain|500|499|0.6|64.4|0.0|0.0|2.0|5.0
 Y|200m|100m|nx-domain|1000|999|1.6|50.1|0.0|10.0|25.0|29.0
 Y|200m|100m|nx-domain|2000|1999|29.4|92.6|17.0|74.0|81.0|83.0
@@ -201,6 +347,26 @@ Y|200m|250m|service|1000|999|0.4|54.1|0.0|0.0|1.0|6.0
 Y|200m|250m|service|2000|1999|0.8|73.6|0.0|0.0|8.2|49.0
 Y|200m|250m|service|3000|2999|0.4|31.7|0.0|0.0|5.0|15.0
 Y|200m|250m|service|-|14781|5.6|76.4|0.0|63.3|73.0|75.0
+Y|200m|unlimited|nx-domain|500|499|0.6|47.8|0.0|0.0|2.0|5.0
+Y|200m|unlimited|nx-domain|1000|999|1.1|75.8|0.0|1.0|19.0|33.0
+Y|200m|unlimited|nx-domain|2000|1995|16.4|108.2|3.0|53.0|66.0|70.0
+Y|200m|unlimited|nx-domain|3000|2987|20.1|90.2|4.0|70.0|79.0|82.0
+Y|200m|unlimited|nx-domain|-|3420|28.6|98.9|6.0|90.0|97.0|98.0
+Y|200m|unlimited|outside|500|499|0.3|10.7|0.0|0.0|0.0|1.0
+Y|200m|unlimited|outside|1000|999|0.3|12.4|0.0|0.0|0.0|1.0
+Y|200m|unlimited|outside|2000|1999|0.2|4.2|0.0|0.0|0.0|1.0
+Y|200m|unlimited|outside|3000|2999|0.2|3.6|0.0|0.0|0.0|1.0
+Y|200m|unlimited|outside|-|56964|1.6|3.1|1.0|1.0|2.0|2.0
+Y|200m|unlimited|pod-ip|500|499|0.3|9.1|0.0|0.0|0.0|1.0
+Y|200m|unlimited|pod-ip|1000|999|0.3|8.8|0.0|0.0|0.0|1.0
+Y|200m|unlimited|pod-ip|2000|1999|0.3|9.2|0.0|0.0|1.0|2.0
+Y|200m|unlimited|pod-ip|3000|2999|0.3|9.7|0.0|0.0|3.0|4.0
+Y|200m|unlimited|pod-ip|-|50785|0.8|2.4|0.0|1.0|2.0|2.0
+Y|200m|unlimited|service|500|499|0.3|7.9|0.0|0.0|0.0|1.0
+Y|200m|unlimited|service|1000|999|0.3|11.6|0.0|0.0|0.0|2.0
+Y|200m|unlimited|service|2000|1999|0.5|51.9|0.0|0.0|5.0|27.0
+Y|200m|unlimited|service|3000|2999|0.2|4.5|0.0|0.0|0.0|1.0
+Y|200m|unlimited|service|-|53546|1.4|2.5|1.0|1.0|2.0|2.0
 Y|250m|100m|nx-domain|500|499|0.6|51.8|0.0|0.0|2.0|5.0
 Y|250m|100m|nx-domain|1000|999|3.1|64.3|0.0|18.0|29.0|35.0
 Y|250m|100m|nx-domain|2000|1982|28.6|87.7|10.0|73.0|80.0|83.0
@@ -261,4 +427,104 @@ Y|250m|250m|service|1000|999|0.5|74.7|0.0|0.0|2.0|25.0
 Y|250m|250m|service|2000|1999|0.6|61.7|0.0|0.0|11.0|37.0
 Y|250m|250m|service|3000|2999|1.0|91.1|0.0|0.0|8.5|75.0
 Y|250m|250m|service|-|14094|7.0|87.8|1.0|75.0|77.1|87.0
+Y|250m|unlimited|nx-domain|500|499|5.2|536.6|0.0|0.0|91.7|454.0
+Y|250m|unlimited|nx-domain|1000|999|0.6|40.6|0.0|0.0|5.0|8.0
+Y|250m|unlimited|nx-domain|2000|1999|7.1|85.9|0.0|33.0|50.0|63.0
+Y|250m|unlimited|nx-domain|3000|2977|15.4|77.6|3.0|56.0|66.0|69.0
+Y|250m|unlimited|nx-domain|-|4966|20.0|96.6|4.0|85.0|88.0|88.0
+Y|250m|unlimited|outside|500|499|0.3|4.9|0.0|0.0|0.0|1.0
+Y|250m|unlimited|outside|1000|999|0.2|5.7|0.0|0.0|0.0|1.0
+Y|250m|unlimited|outside|2000|1999|0.2|8.5|0.0|0.0|1.0|2.0
+Y|250m|unlimited|outside|3000|2999|0.3|10.2|0.0|0.0|2.0|4.0
+Y|250m|unlimited|outside|-|58536|1.6|3.0|1.0|1.0|2.0|2.0
+Y|250m|unlimited|pod-ip|500|499|0.3|10.9|0.0|0.0|1.0|1.0
+Y|250m|unlimited|pod-ip|1000|999|0.3|6.5|0.0|0.0|1.0|1.0
+Y|250m|unlimited|pod-ip|2000|1999|0.2|6.7|0.0|0.0|1.0|1.0
+Y|250m|unlimited|pod-ip|3000|2999|0.4|15.8|0.0|0.0|4.0|9.0
+Y|250m|unlimited|pod-ip|-|72107|1.2|2.2|1.0|1.0|1.0|1.0
+Y|250m|unlimited|service|500|499|0.3|8.7|0.0|0.0|0.0|1.0
+Y|250m|unlimited|service|1000|999|0.3|10.3|0.0|0.0|1.0|2.0
+Y|250m|unlimited|service|2000|1999|0.3|11.4|0.0|0.0|1.0|3.0
+Y|250m|unlimited|service|3000|2999|0.2|8.7|0.0|0.0|1.0|2.0
+Y|250m|unlimited|service|-|60079|1.5|2.6|1.0|1.0|1.0|2.0
+Y|unlimited|100m|nx-domain|500|499|0.5|15.9|0.0|0.0|2.0|4.0
+Y|unlimited|100m|nx-domain|1000|999|1.8|30.6|0.0|11.0|19.0|22.0
+Y|unlimited|100m|nx-domain|2000|1981|28.6|85.1|20.0|72.0|78.0|80.0
+Y|unlimited|100m|nx-domain|3000|2466|39.9|106.5|6.0|95.0|101.0|101.0
+Y|unlimited|100m|nx-domain|-|2127|46.9|195.1|8.0|97.0|103.0|106.0
+Y|unlimited|100m|outside|500|499|0.3|10.1|0.0|0.0|1.0|1.0
+Y|unlimited|100m|outside|1000|999|0.3|11.9|0.0|0.0|1.0|2.0
+Y|unlimited|100m|outside|2000|1999|0.8|32.4|0.0|2.0|19.0|24.0
+Y|unlimited|100m|outside|3000|2999|11.3|86.0|1.0|47.0|57.0|69.0
+Y|unlimited|100m|outside|-|5205|19.1|93.2|1.0|92.0|92.0|92.0
+Y|unlimited|100m|pod-ip|500|499|0.4|58.1|0.0|0.0|1.0|3.0
+Y|unlimited|100m|pod-ip|1000|999|0.5|72.1|0.0|0.0|2.0|22.0
+Y|unlimited|100m|pod-ip|2000|1999|1.1|30.7|0.0|7.0|19.0|22.0
+Y|unlimited|100m|pod-ip|3000|2967|6.6|66.7|0.0|38.0|50.0|54.0
+Y|unlimited|100m|pod-ip|-|5247|18.4|92.9|1.0|92.0|92.0|92.0
+Y|unlimited|100m|service|500|499|0.3|38.8|0.0|0.0|0.0|1.0
+Y|unlimited|100m|service|1000|999|0.3|8.1|0.0|0.0|1.0|1.0
+Y|unlimited|100m|service|2000|1999|2.0|33.4|0.0|15.0|25.0|27.0
+Y|unlimited|100m|service|3000|2999|9.6|54.6|0.0|42.0|49.0|51.0
+Y|unlimited|100m|service|-|7147|13.5|92.1|1.0|91.0|91.0|91.0
+Y|unlimited|200m|nx-domain|500|499|0.5|29.8|0.0|0.0|2.0|3.0
+Y|unlimited|200m|nx-domain|1000|999|0.6|38.0|0.0|0.0|2.0|6.0
+Y|unlimited|200m|nx-domain|2000|1999|0.6|36.1|0.0|1.0|6.0|18.0
+Y|unlimited|200m|nx-domain|3000|2952|9.7|86.3|0.0|37.0|55.0|70.0
+Y|unlimited|200m|nx-domain|-|5010|18.8|92.8|4.0|83.0|86.0|87.0
+Y|unlimited|200m|outside|500|499|0.3|17.1|0.0|0.0|1.0|1.0
+Y|unlimited|200m|outside|1000|999|0.4|43.0|0.0|0.0|1.0|5.0
+Y|unlimited|200m|outside|2000|1999|0.4|35.6|0.0|0.0|5.0|12.0
+Y|unlimited|200m|outside|3000|2999|0.2|4.4|0.0|0.0|0.0|1.0
+Y|unlimited|200m|outside|-|11283|7.8|82.2|1.0|80.0|81.0|81.0
+Y|unlimited|200m|pod-ip|500|499|0.3|7.0|0.0|0.0|0.0|1.0
+Y|unlimited|200m|pod-ip|1000|999|0.3|43.5|0.0|0.0|1.0|1.0
+Y|unlimited|200m|pod-ip|2000|1999|0.2|6.5|0.0|0.0|1.0|1.0
+Y|unlimited|200m|pod-ip|3000|2999|0.3|12.4|0.0|0.0|3.0|5.0
+Y|unlimited|200m|pod-ip|-|12593|7.4|86.8|1.0|79.0|82.0|85.0
+Y|unlimited|200m|service|500|499|0.3|10.3|0.0|0.0|0.0|1.0
+Y|unlimited|200m|service|1000|999|0.4|46.7|0.0|0.0|1.0|4.0
+Y|unlimited|200m|service|2000|1999|0.3|12.5|0.0|0.0|1.0|2.0
+Y|unlimited|200m|service|3000|2999|1.0|87.4|0.0|0.0|9.5|71.0
+Y|unlimited|200m|service|-|11067|8.8|82.2|1.0|81.0|82.0|82.0
+Y|unlimited|250m|nx-domain|500|499|0.5|27.8|0.0|0.0|2.0|3.0
+Y|unlimited|250m|nx-domain|1000|999|0.7|58.7|0.0|0.0|3.0|13.0
+Y|unlimited|250m|nx-domain|2000|1999|1.0|79.6|0.0|0.0|10.2|57.0
+Y|unlimited|250m|nx-domain|3000|2999|3.1|89.3|0.0|14.0|40.3|81.0
+Y|unlimited|250m|nx-domain|-|6269|15.8|85.2|4.0|74.0|80.0|83.0
+Y|unlimited|250m|outside|500|499|0.3|40.8|0.0|0.0|0.0|1.0
+Y|unlimited|250m|outside|1000|999|0.6|78.9|0.0|0.0|1.0|29.0
+Y|unlimited|250m|outside|2000|1999|0.8|81.6|0.0|0.0|9.2|57.0
+Y|unlimited|250m|outside|3000|2999|0.8|69.6|0.0|0.0|7.3|53.0
+Y|unlimited|250m|outside|-|14588|6.4|77.9|1.0|73.0|77.0|77.0
+Y|unlimited|250m|pod-ip|500|499|0.4|63.5|0.0|0.0|1.0|3.0
+Y|unlimited|250m|pod-ip|1000|999|0.4|52.5|0.0|0.0|1.0|5.0
+Y|unlimited|250m|pod-ip|2000|1999|0.2|4.5|0.0|0.0|0.0|1.0
+Y|unlimited|250m|pod-ip|3000|2999|0.5|34.3|0.0|0.0|9.0|18.0
+Y|unlimited|250m|pod-ip|-|14335|6.3|77.5|1.0|73.0|76.0|76.0
+Y|unlimited|250m|service|500|499|0.3|50.1|0.0|0.0|1.0|2.0
+Y|unlimited|250m|service|1000|999|0.4|56.7|0.0|0.0|2.0|11.0
+Y|unlimited|250m|service|2000|1999|0.2|6.8|0.0|0.0|1.0|1.0
+Y|unlimited|250m|service|3000|2999|0.3|13.3|0.0|0.0|4.0|7.0
+Y|unlimited|250m|service|-|21639|4.5|76.6|1.0|2.8|76.0|76.0
+Y|unlimited|unlimited|nx-domain|500|499|0.5|9.9|0.0|0.0|1.0|2.0
+Y|unlimited|unlimited|nx-domain|1000|999|0.5|10.8|0.0|0.0|2.0|4.0
+Y|unlimited|unlimited|nx-domain|2000|1999|0.5|17.9|0.0|0.0|4.0|8.0
+Y|unlimited|unlimited|nx-domain|3000|2999|0.5|14.0|0.0|0.0|4.0|7.0
+Y|unlimited|unlimited|nx-domain|-|19256|5.1|20.0|4.0|9.0|11.0|12.0
+Y|unlimited|unlimited|outside|500|499|0.3|12.2|0.0|0.0|0.0|1.0
+Y|unlimited|unlimited|outside|1000|999|0.3|11.8|0.0|0.0|1.0|2.0
+Y|unlimited|unlimited|outside|2000|1999|0.2|4.8|0.0|0.0|0.0|1.0
+Y|unlimited|unlimited|outside|3000|2999|0.3|23.7|0.0|0.0|4.0|10.0
+Y|unlimited|unlimited|outside|-|58921|1.5|3.6|1.0|1.0|2.0|2.0
+Y|unlimited|unlimited|pod-ip|500|499|0.3|6.4|0.0|0.0|1.0|1.0
+Y|unlimited|unlimited|pod-ip|1000|999|0.3|6.6|0.0|0.0|0.0|1.0
+Y|unlimited|unlimited|pod-ip|2000|1999|0.2|10.2|0.0|0.0|0.0|1.0
+Y|unlimited|unlimited|pod-ip|3000|2999|0.2|5.9|0.0|0.0|1.0|2.0
+Y|unlimited|unlimited|pod-ip|-|57203|1.6|3.7|1.0|1.0|2.0|2.0
+Y|unlimited|unlimited|service|500|499|0.3|8.3|0.0|0.0|0.0|1.0
+Y|unlimited|unlimited|service|1000|999|0.3|8.1|0.0|0.0|0.0|1.0
+Y|unlimited|unlimited|service|2000|1999|0.2|9.8|0.0|0.0|1.0|2.0
+Y|unlimited|unlimited|service|3000|2999|0.3|12.3|0.0|0.0|2.0|5.0
+Y|unlimited|unlimited|service|-|58411|1.5|3.8|1.0|1.0|2.0|3.0
 

@@ -7,8 +7,8 @@ conn = sqlite3.connect('dnsperf.db')
 cursor = conn.cursor()
 
 dnsmasq_cache = ['0', '10000']
-kubedns_cpu = ['200m', '250m']
-dnsmasq_cpu = ['100m', '200m', '250m']
+kubedns_cpu = ['200m', '250m', '']
+dnsmasq_cpu = ['100m', '200m', '250m', '']
 query_type = ['nx-domain', 'outside', 'pod-ip', 'service']
 max_qps = ['-Q500', '-Q1000', '-Q2000', '-Q3000', '']
 
@@ -23,23 +23,50 @@ out = StringIO.StringIO()
 out.write("""
 # Overview
 
-This directory contains scripts used to run a dns performance test against a
-kubernetes cluster.
+This directory contains scripts used to run a dns performance test
+against a kubernetes cluster.
 
-See ./run-dnsperf.sh --help for details.
+See ./run-dnsperf.sh --help for details on how to rerun the benchmark
+on your own cluster.
 
 # Raw data
 
-This is the raw data for kube-dns performance.
+The results below were obtained from a cluster consisting of
+2-vCPUs/node. Available RAM was not a factor in the performance test.
 
-* cached - whether or not the dnsmasq cache was used
-* kubedns_cpu - resource limit for kubedns
-* dnsmasq_cpu - resource limit for kubedns
-* query_type - type of DNS query
-* target QPS - queries per second (QPS) target for with dnsperf
-* attained QPS - average QPS we got on the run
-* avg, max latency - average, maximum query latency
-* 50, .. %tile - latency percentiles
+## Notes on interpretation
+
+The questions we want to answer:
+
+* What is the maximum QPS we can get from the Kubernetes DNS service
+  given no limits?
+* If we restrict CPU resources, what is the peformance we can expect?
+  (i.e. resource limits in the pod yaml).
+* What are the SLOs (e.g. query latency) for a given setting that the
+  user can expect? Alternate phrasing: what can we expect in realistic
+  workloads that do not saturate the service?
+
+From table below, the answer can be read off from the appropriate
+row.
+
+The inclusion of target QPS vs attained QPS is to answer the third
+question. For example, if a user does not hit the maximum QPS possible
+from a given DNS server pod, then what are the latencies that they
+should expect? Latency increases with load and if a user's
+applications do not saturate the service, they will attain better
+latencies.
+
+## Table fields
+
+* cached - Whether or not the dnsmasq cache was used
+* kubedns_cpu - Resource limit for kubedns
+* dnsmasq_cpu - Resource limit for kubedns
+* query_type - Type of DNS query
+* target QPS - Queries per second (QPS) target for
+  dnsperf. `unlimited` means run the DNS system to saturation.
+* attained QPS - Average QPS we got on the run
+* avg, max latency - Average, maximum query latency
+* 50, .. %tile - Latency percentiles (ms)
 
 """)
 out.write('|'.join(headings) + '\n')
@@ -60,13 +87,23 @@ for cache in dnsmasq_cache:
                         ' and max_qps = ?',
                         (cache, kc, dc, qt, mq))
 
-                    values.extend(['Y' if (int(cache) > 0) else 'N', kc, dc, qt, mq.lstrip('-Q') if mq else '-'])
+                    values.extend([
+                        'Y' if (int(cache) > 0) else 'N',
+                        kc if kc else 'unlimited',
+                        dc if dc else 'unlimited',
+                        qt,
+                        mq.lstrip('-Q') if mq else '-'])
 
                     rows = cursor.fetchall()
                     if len(rows) == 0: continue
                     qps, avg_latency, max_latency = rows[0]
 
-                    values.extend([int(qps), round(avg_latency*1000,1), round(1000*max_latency,1)])
+                    if not qps: continue
+
+                    values.extend([
+                        int(qps) if qps else 'invalid',
+                        round(avg_latency*1000,1) if avg_latency else 'invalid',
+                        round(1000*max_latency,1) if avg_latency else 'invalid'])
 
                     cursor.execute(
                         'select rtt_ms, rtt_ms_count from histograms where ' +
